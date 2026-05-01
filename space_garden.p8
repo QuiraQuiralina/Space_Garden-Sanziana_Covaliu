@@ -26,7 +26,7 @@ end
 function _draw()
   cls()
   map(0, 0)
-  if player.is_ship then
+  if player.state == "ship" then
     spr(32, player.x, player.y, 2, 2, player.flp)
   else
     spr(player.sp, player.x, player.y, 1, 1, player.flp)
@@ -34,10 +34,20 @@ function _draw()
 end
 
 function player_update()
-  -- physics
-  if not player.is_ship then
-    player.dy += gravity
+  if player.state == "human" then
+    update_human()
+  elseif player.state == "ship" then
+    update_ship()
   end
+
+  -- map limits
+  local current_w = (player.state == "ship") and 16 or player.w
+  player.x = mid(map_start, player.x, map_end - current_w)
+end
+
+function update_human()
+  -- physics
+  player.dy += gravity
   player.dx *= friction
 
   -- controls
@@ -57,86 +67,144 @@ function player_update()
     end
   end
 
-  -- transform
-  if btnp(4) then
-    player.is_ship = not player.is_ship
-    if player.is_ship then
-      -- move up 1 tile when becoming ship (so 2x2 sprite isn't underground)
-      player.y -= 8
-    end
+  -- crouch
+  if btn(3) and player.landed then
+    player.crouching = true
+  else
+    player.crouching = false
   end
 
-  -- jump - can initiate with z when landed
-  if btnp(5) and player.landed then
+  -- transform
+  if btnp(4) then
+    player.state = "ship"
+    player.y -= 8
+    return
+  end
+
+  -- interact
+  if btnp(5) then
+    -- placeholder for interact
+  end
+
+  -- jump - mapped to arrow up (btnp(2))
+  if btnp(2) and player.landed then
     player.dy -= player.boost
     player.landed = false
     player.jumping = true
   end
 
-  -- jump control - hold up to ascend, down to descend
-  if not player.landed then
-    if btn(2) then
-      -- up arrow
-      if player.dy > -player.max_dy then
-        player.dy -= 0.2 -- controlled ascent
-      end
-    elseif btn(3) then
-      -- down arrow
-      if player.dy < player.max_dy then
-        player.dy += 0.2 -- controlled descent
-      end
-    end
-  else
+  if player.landed then
     player.jumping = false
   end
 
-  -- speed limits (using mid instead of Limit_speed)
+  -- speed limits
   player.dy = mid(-player.max_dy, player.dy, player.max_dy)
 
   -- y movement & collision
   player.y += player.dy
   if player.dy > 0 then
-    if (player.is_ship and ship_collider(player, "down", 0)) or (not player.is_ship and _collide_map(player, "down", 0)) then
+    if _collide_map(player, "down", 0) then
       player.landed = true
       player.falling = false
       player.dy = 0
-      local current_h = player.is_ship and 16 or player.h
-      player.y = flr((player.y + current_h) / 8) * 8 - current_h
+      player.y = flr((player.y + player.h) / 8) * 8 - player.h
     end
   elseif player.dy < 0 then
-    if (player.is_ship and ship_collider(player, "up", 0)) or (not player.is_ship and _collide_map(player, "up", 0)) then
+    if _collide_map(player, "up", 0) then
       player.dy = 0
+      player.y = flr(player.y / 8) * 8 + 8
     end
   end
 
   -- x movement & collision
   player.x += player.dx
   if player.dx > 0 then
-    if (player.is_ship and ship_collider(player, "right", 0)) or (not player.is_ship and _collide_map(player, "right", 0)) then
+    if _collide_map(player, "right", 0) then
       player.dx = 0
-      local current_w = player.is_ship and 16 or player.w
-      player.x = flr((player.x + current_w) / 8) * 8 - current_w
+      player.x = flr((player.x + player.w) / 8) * 8 - player.w
     end
   elseif player.dx < 0 then
-    if (player.is_ship and ship_collider(player, "left", 0)) or (not player.is_ship and _collide_map(player, "left", 0)) then
+    if _collide_map(player, "left", 0) then
       player.dx = 0
       player.x = flr(player.x / 8) * 8 + 8
     end
   end
+end
 
-  -- map limits
-  local current_w = player.is_ship and 16 or player.w
-  player.x = mid(map_start, player.x, map_end - current_w)
-end -- this was the missing end!
+function update_ship()
+  -- physics (zero gravity drift)
+  player.dx *= friction
+  player.dy *= friction
+
+  -- horizontal controls
+  if btn(0) then
+    player.dx -= player.acc
+    player.flp = true
+  elseif btn(1) then
+    player.dx += player.acc
+    player.flp = false
+  end
+
+  -- vertical controls
+  if btn(2) then
+    player.dy -= player.acc
+  elseif btn(3) then
+    player.dy += player.acc
+  end
+
+  -- transform back to human
+  if btnp(4) then
+    player.state = "human"
+    return
+  end
+
+  -- shoot
+  if btnp(5) then
+    -- placeholder for shoot
+  end
+
+  -- speed limits
+  player.dy = mid(-player.max_dy, player.dy, player.max_dy)
+
+  -- y movement & collision
+  player.y += player.dy
+  if player.dy > 0 then
+    if ship_collider(player, "down", 0) then
+      player.dy = 0
+      player.y = flr((player.y + 16) / 8) * 8 - 16
+    end
+  elseif player.dy < 0 then
+    if ship_collider(player, "up", 0) then
+      player.dy = 0
+      player.y = flr(player.y / 8) * 8 + 8
+    end
+  end
+
+  -- x movement & collision
+  player.x += player.dx
+  if player.dx > 0 then
+    if ship_collider(player, "right", 0) then
+      player.dx = 0
+      player.x = flr((player.x + 16) / 8) * 8 - 16
+    end
+  elseif player.dx < 0 then
+    if ship_collider(player, "left", 0) then
+      player.dx = 0
+      player.x = flr(player.x / 8) * 8 + 8
+    end
+  end
+end
 
 function player_animate()
+  if player.state == "ship" then return end
+
   -- using time() (lowercase) instead of Time()
   if not player.landed then
     player.sp = 7
   elseif abs(player.dx) > 0.1 then
-    player.sp = 3 + (flr(time() * 10) % 4) -- simple walk cycle
+    player.sp = 2 + (flr(time() * 10) % 3) -- walk cycle (sprites 2, 3, 4)
   else
-    player.sp = 1
+    player.sp = flr(time() * 4) % 2 -- idle cycle (sprites 0, 1)
   end
 end
 
@@ -221,7 +289,7 @@ __gfx__
 04fffff004fffef0404fffe0404fffe0404fffe0404fffe0004f71f0404fffe0008ee800808ee800008ee800008ee80877777777777777777707070704bbbb50
 444ff444444ff444444ff440444ff440444ff440444ff440404fffe0444ff44008eeee8008eeee8008eeee8008eeee80ccccccccc00cc0c0c00c00c004444540
 00eeee0000eeee00feeee000feeee000feeee000feeee000444ff440feeeeeefe8eeee8ee8eeee8ee8eeee8ee8eeee8e11111111101011011010100100045000
-0f02d0f000feef0000eee00000eee00000eee00000eee000feeeeeef002ed0000e8ee8e00e8ee8e00e8ee8e00e8ee8e000000000000000000000000000045000
+0f02d0f000feef0000eee00000eee00000eee00000eee000feeeeeef00e2ed000e8ee8e00e8ee8e00e8ee8e00e8ee8e000000000000000000000000000045000
 f002d00f0f02d0f02220d0000020d0000d2dd0000020d00000eee2220020d00000eeee0000eeee0000eeee0000eeee0000000000000000000000000004945550
 0022dd000022dd000000d000020d00000020000000020d00000dddd0000000000002200000022000000220000002200000000000000000000000000049444444
 0000000070000007707070070000000000000000000000000000000000000000000000000000000000022e0000022e0056555555494444444944444404494550

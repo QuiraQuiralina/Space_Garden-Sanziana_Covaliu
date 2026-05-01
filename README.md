@@ -47,30 +47,30 @@ Project for the Game Development Classes
     [EXPLORING]Explore ways to navigate the Y axis on the ship
         [ONGOING] Finite State Machine implementation
             Player_Human
-                [CONTROLS]
+                [DONE]CONTROLS
                     Arrow up    - Jump
                     Arrow down  - Crouch
                     Arrow left  - Run foward (to the left of the screen)
                     Arrow right - Run foward (to the right of the screen)
                     X - Interact with objects
                     C - Change to Ship
-                [HEALTH BAR]
-                    3 HEARTS
+                []HEALTH BAR
+                    3 hearts
                     _Healthbar variable
-                [ITEMS SPAWN]
+                []ITEMS SPAWN
                     Crystals
             Player_Ship
-                [CONTROLS]
+                [DONE]CONTROLS
                     Arrow up    - Fly up
                     Arrow down  - Fly Down
                     Arrow left  - Fly foward (to the left of the screen)
                     Arrow right - Fly foward (to the right of the screen)
                     X - Shoot down objects
                     C - Change to human
-                [HEALTH BAR]
-                    5 HEARTS
+                []HEALTH BAR
+                    5 crystals
                     _Fuel variable
-                [ITEMS SPAWN]
+                []ITEMS SPAWN
                     Asteroids
 
 
