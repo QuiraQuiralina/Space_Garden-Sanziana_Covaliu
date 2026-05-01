@@ -9,7 +9,7 @@ function _init()
     acc = 0.5, boost = 4, anim = 0,
     running = false, jumping = false,
     falling = false, sliding = false, landed = false,
-    is_ship = false
+    state = "human", crouching = false
   }
   gravity = 0.3
   friction = 0.85
