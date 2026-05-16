@@ -81,26 +81,63 @@ Project for the Game Development Classes
 {ViSUAL}
     
     []PLAYER
-        []player_run_anim
-        []player_hurt_anim
-        []player_death_anim
-        []player_crouch
+        [x]player_run_anim (sprites 2, 3 ,4)
+        [x]player_idle (sprites 0, 1 ,4)
+        [x]player_jump (sprite 7)
+        [x]player_hurt_anim (sprite 16)
+        [x]player_death_anim (sprites 16, 17, 18, 19, 20, 21)
+        [x]player_slide (sprite 6)
     []SHIP
-        []ship_fly_anim
-        []ship_idle_anim
-        [x]ship_destruction_anim
+        [x]ship_fly_anim (big sprites frame_1 = 36, 37, 52, 53, frame_2 = 38, 39, 54, 55)
+        [x]xship_idle_anim (big sprites frame_1 = 32, 33, 48, 49, frame_2 = 34, 35, 50, 51)
+        [x]ship_destruction_anim (sprites 40, 41, 42, 43)
     []INTERACTIONS_GROUND
-        [x]platform_anim
-        [x]lever_anim
-        [x]button_anim
+        [x]The_Laser_bridge_anim (sprites 12, 13, 14)
+            FLAGS = RED
+        Laser_generator_no_anim (sprites 28, 29, 30)
+            FLAGS = RED, GREEN
+        [x]The_Generator_Lever_anim (sprites 63 = OFF, 47 = ON) --// then the player can play the animation with btnp(5) but without any logical input after the first time.
+            FLAGS = GREEN
+        [x]The_Laser_Controller_anim (sprites 31 = OFF, 15 = ON)
+            FLAGS = GREEN
     []ASTEOIRDS
-        []bullet_anim
-        []asteroid_idle
-        [x]asteroid_death_anim
+        [x]ship_shoot_anim (sprite 56)
+        [x]ship_bullet_anim (sprite 22) --// the coursor, we need to implement this keybind too
+        [x]asteroids (sprite 82, 83, 98, 99, 114, 115) --//No_anim_just_position transform
+        [x]asteroid_death_anim (sprites 40, 41, 42, 43)
+            FLAGS = RED, ORANGE, PINK, WHITE
     []ENEMY_PLANTS
-        [x]enemy_anim
-        []enemy_shoot_anim
-        [x]enemy_death_anim
-    []CRYSTALS
-        []crystals_idle_anim
-        []crystals_pick-up_anim
+        [x]enemy_anim_idle (sprite 77)
+        [x]enemy_anim_shoot (sprites 68, 67, 66, 65)
+        [x]enemy_bullet_anim (sprites 64, 80, 96, 112)
+        [x]enemy_death_anim (sprites 40, 41, 42, 43)
+            FLAGS = PINK, WHITE
+    []CRYSTALS 
+        [x]crystals_idle_anim (sprites 24, 25,)
+        [x]crystals_pick-up_anim (sprites 26, 27,)
+            FLAGS = BLUE
+    []HEALTH
+        [x] Full_heart (sprite 8)
+        [x] Health_loss (sprites 9, 10 ,11)
+    []INTERFACE
+        []Death_screen (sprite 23)
+        Main Menu
+        []Play (sprite 81)
+        []Retry (sprite 97)
+        []Quit (sprite 113)
+    []Terrain
+    Sprites
+        from 69 till 76 and 78,79
+        from 85 till 92 and 94,95
+        from 101 till 103 and 106 till 111
+        from 117 till 127
+            FLAGS = RED, ORANGE
+
+FLAGS MEANING
+RED = Terrain Collider from above
+ORANGE = Terrain collider from below
+GREEN = Interactible logic (the laser_bridge_function)
+BLUE = Collectible
+PURPLE = bullet
+PINK = Shootable
+WHITE = Deals damage on collision
