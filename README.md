@@ -93,7 +93,7 @@ Project for the Game Development Classes
         [x]ship_destruction_anim (sprites 40, 41, 42, 43)
     []INTERACTIONS_GROUND
         [x]The_Laser_bridge_anim (sprites 12, 13, 14)
-            FLAGS = RED
+            FLAGS = RED on all sprites now
         Laser_generator_no_anim (sprites 28, 29, 30)
             FLAGS = RED, GREEN
         [x]The_Generator_Lever_anim (sprites 63 = OFF, 47 = ON) --// then the player can play the animation with btnp(5) but without any logical input after the first time.
@@ -109,13 +109,14 @@ Project for the Game Development Classes
     []ENEMY_PLANTS
         [x]enemy_anim_idle (sprite 77)
         [x]enemy_anim_shoot (sprites 68, 67, 66, 65)
-        [x]enemy_bullet_anim (sprites 64, 80, 96, 112)
+        [x]enemy_bullet_anim (sprites 64, 80, 96, 112, 96, 80, 64,)
         [x]enemy_death_anim (sprites 40, 41, 42, 43)
             FLAGS = PINK, WHITE
     []CRYSTALS 
-        [x]crystals_idle_anim (sprites 24, 25,)
-        [x]crystals_pick-up_anim (sprites 26, 27,)
+        [x]blue_crystals_idle_anim (sprites 24, 25,)
+        [x]blue_crystals_pick-up_anim (sprites 26, 27,)
             FLAGS = BLUE
+        [x]Green_crystal (sprite 22) --// collect them all for endgame
     []HEALTH
         [x] Full_heart (sprite 8)
         [x] Health_loss (sprites 9, 10 ,11)
@@ -125,6 +126,9 @@ Project for the Game Development Classes
         []Play (sprite 81)
         []Retry (sprite 97)
         []Quit (sprite 113)
+        []Endgame screen 
+            is sprite 8 in the middle with 
+            looped animations of (sprites 40, 41, 42, 43) that play from random locations on screen (besides the 8 tiles in the middle)
     []Terrain
     Sprites
         from 69 till 76 and 78,79
@@ -132,6 +136,10 @@ Project for the Game Development Classes
         from 101 till 103 and 106 till 111
         from 117 till 127
             FLAGS = RED, ORANGE
+
+    [] endgame screen is sprite 8 in the middle with 
+        looped animations of (sprites 40, 41, 42, 43) that play from random locations on screen (besides the 8 tiles in the middle)
+    
 
 FLAGS MEANING
 RED = Terrain Collider from above
@@ -141,3 +149,15 @@ BLUE = Collectible
 PURPLE = bullet
 PINK = Shootable
 WHITE = Deals damage on collision
+
+
+SFX.1 = Engine (on loop while player in ship form)
+SFX.1 = Player jump
+SFX.2 = Player Shoot (X)
+SFX.3 = Ship Transform / Human Transform (c)
+SFX.4 = Crystal Pick_up
+SFX.5 = Asteroid Death
+SFX.6 = Engine (on loop while player in ship form)
+
+The engine Loop should be (SFX 00 plays on player input, the c key. After the SFX oo finnishes, that should trigger SFX 06, that should play and when it finnishes should play SFX.00 and so on while the player_is_ship FSM)
+
