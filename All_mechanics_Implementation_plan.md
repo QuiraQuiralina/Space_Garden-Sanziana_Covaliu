@@ -19,8 +19,7 @@ Below is the structured, sequential history of our game's development and planni
 
 - **[PLAN I] Finite State Machine (FSM) for Player Movement** ➔ _Movement logic refactoring, multi-directional flight controls, and state routing._
 - **[PLAN II] Health & Animations Integration** ➔ _System expansion, 10-hearts layout, and particle drop behaviors._
-- **[PLAN IV] Unified Green Crystals Win Condition & Fall Death** ➔ _Win condition redesign to include enemy drops, full health gem pickup fixes, and falling hazard death._
-- **[LOG III] Historical Completion Log (Phases 1 to 10)** ➔ _The fully realized features powering the current space_garden.p8 codebase._
+- **[LOG III] Historical Completion Log (Phases 1 to 14)** ➔ _The fully realized features powering the current space_garden.p8 codebase._
 
 ---
 
@@ -136,131 +135,7 @@ Before I start coding, I need clarification on exactly how you envision these an
 
 ---
 
-# 🏆 [PLAN IV] Unified Green Crystals Win Condition & Fall Death
-
-This plan redesigns the game's win and death logic to make the green crystals a unified progression metric (including enemy drops) and introduce falling off the map as an immediate hazard.
-
-> [!NOTE]
-> **Active Step Implementation Plan**: [implementation_plan.md](file:///C:/Users/sanzi/.gemini/antigravity-ide/brain/951fa49b-49c4-46e4-9190-a86bb0ac091b/implementation_plan.md)
-
-## 🛠️ Proposed Changes
-
-### [x] 1. Unified Total Gems Calculation (`_init`) - COMPLETED
-
-Currently, `total_green_gems` only counts static tiles on the map. Because enemy plants (sprite `77`) now dynamically drop green gems when shot, we must include them in the total. Since each plant drops exactly 1 gem, we will calculate:
-`total_green_gems = static_green_gems + total_enemy_plants`
-
-```diff
-  -- count green gems
-  total_green_gems = 0
-  for my = 0, 63 do
-    for mx = 0, 127 do
-      local sp = mget(mx, my)
-      if sp == 22 then
-        total_green_gems += 1
-      elseif sp == 77 then
-+       total_green_gems += 1 -- each plant drops exactly one green gem
-        add(enemies, { x = mx * 8, y = my * 8, state = "idle", timer = 0, health = 1, death_timer = 0 })
-        mset(mx, my, 0)
-      end
-    end
-  end
-```
-
-### [/] 2. Full-Health Map Crystal Collection (`check_crystal_collision`) - IN PROGRESS
-
-We will remove the block gate `player.health < player.max_health` when collecting static map crystals so they can be picked up at full health to increment progress.
-
-```diff
-    if spr_id == 22 then
--     if player.health < player.max_health then
-        sfx(4)
-        player.green_gems_collected += 1
--       change_health(1)
-+       if player.health < player.max_health then
-+         change_health(1)
-+       end
-        mset(map_x, map_y, 0)
-        add(effects, {x = map_x * 8, y = map_y * 8, timer = 0, type = "crystal"})
-        break
--     end
-    end
-```
-
-### 3. Dynamic Gem Progression on Enemy Drops (`check_crystal_collision`)
-
-We will modify the dropped-item loop to increment `player.green_gems_collected` and allow pickups at full health.
-
-```diff
-  -- Check dropped items
-  for i in all(items) do
-    if check_aabb(player.x, player.y, player.w, player.h, i.x, i.y, 8, 8) then
--     if i.sp == 22 and player.health < player.max_health then
-+     if i.sp == 22 then
-        sfx(4)
--       change_health(1)
-+       player.green_gems_collected += 1
-+       if player.health < player.max_health then
-+         change_health(1)
-+       end
-        add(effects, {x = i.x, y = i.y, timer = 0, type = "crystal"})
-        del(items, i)
-      end
-    end
-  end
-```
-
-### 4. Falling Hazard Death (`player_update`)
-
-If the player falls off the bottom of the map (`player.y > 120`), they will be instantly killed, entering the `dying` sequence smoothly.
-
-```diff
-function player_update()
-  if player.state == "dying" then
-    -- only apply gravity so the player falls to the floor while dying
-    player.dy += gravity
-    player.y += player.dy
-    if player.dy > 0 then
-      if _collide_map(player, "down", 0) then
-        player.dy = 0
-        player.y = flr((player.y + player.h) / 8) * 8 - player.h
-      end
-    end
-  elseif player.state == "human" then
-    update_human()
-  elseif player.state == "ship" then
-    update_ship()
-  end
-
-+ -- falling death trigger
-+ if player.y > 120 and player.state ~= "dying" then
-+   player.health = 0
-+   player.state = "dying"
-+   player.death_timer = 0
-+   sfx(5)
-+ end
-
-  -- map limits
-  local current_w = (player.state == "ship") and 16 or player.w
-  player.x = mid(map_start, player.x, map_end - current_w)
-end
-```
-
-## 🧪 Verification Plan
-
-### Automated Checks
-
-- Validate file changes parses inside PICO-8.
-
-### Manual Verification
-
-1.  **Full Health Pick-up:** Start the game at 10/10 health and stand on a static green gem. Verify it is successfully collected, plays the particle effect, and increments your progress.
-2.  **Enemy Gem Collection:** Fight an enemy plant, collect the dropped gem at full health, and verify it counts toward `player.green_gems_collected`.
-3.  **Falling Death:** Jump off a bottomless cliff. Verify that the camera follows the player downwards briefly as they animate through their death sprites, culminating in the "Press X to Restart" screen.
-
----
-
-# 📜 [LOG III] Historical Completion Log (Phases 1-10)
+# 📜 [LOG III] Historical Completion Log (Phases 1-14)
 
 Here is the full record of all the phases we have completed so far!
 
@@ -392,3 +267,52 @@ The game's fuel bar has been upgraded to use the same dynamic animation system a
   - **Fuel Loss:** When the ship naturally consumes a full unit of fuel, the corresponding fuel crystal on the HUD cycles through sprites `26 -> 27` before disappearing.
   - **Fuel Gain:** Picking up a Blue Crystal triggers a missing fuel spot on the HUD to animate backwards `27 -> 26` until it solidifies back into a full crystal (`24`).
 - **Persistent Low Fuel Warning:** The flashing red warning sequence automatically restricts itself to only the _remaining_ solid crystals when fuel drops below 2.5!
+
+---
+
+### 🟢 Phase 11: Unified Win Condition & Fall Death Complete
+
+The game's progression and bottomless hazard mechanics are now unified and robust!
+
+#### What was implemented:
+
+- **Unified Green Gem Calculation:** The game now automatically adds map-placed static green crystals and the plant enemies together during initialization (`total_green_gems = static_green_gems + total_enemy_plants`). This dynamically accounts for plant crystal drops.
+- **Full-Health Map Pickups:** The player can pick up static green gems from the map at full health (10/10) to progress towards the win condition, triggering the correct audio and collection particle effects.
+- **Full-Health Dropped Pickups:** The player can collect green gem drops from defeated plants even at full health, incrementing the green gems progress correctly.
+- **Falling Hazard Pit Death:** A human player falling below Y = 120 is immediately defeated. Their health drops to 0, state transitions to `"dying"`, sound effect `sfx(5)` plays, and they fall to their doom playing the death animation sequence smoothly before launching the retry/restart screen.
+
+---
+
+### 🟢 Phase 12: Game Balancing Updates Complete
+
+The game has been perfectly tuned to optimize player experience, making ship navigation manageable, static map hazards shootable, and enemy projectiles dodgeable!
+
+#### What was implemented:
+
+- **Asteroid Balance:** Cooldown timer increased from `10 + rnd(15)` to `20 + rnd(20)` (which the player refined) and drift velocity reduced to `dx = -0.5 - rnd(0.8)` and `dy = (rnd(1) - 0.5) * 0.3`.
+- **Shootable Map Asteroids:** Any static background map tile of the asteroid sprite set (`82, 83, 98, 99, 114, 115`) now explodes on player bullet collision, clearing the tile with `mset(tx, ty, 0)`, playing `sfx(5)`, and showing the standard destruction animation (`40..43`).
+- **Dodgeable Enemy Projectiles:** Plant enemy bullets are now fired less frequently (every 180 frames). The trajectory direction vector is calculated once at spawn time, and the bullet moves linearly without homing, allowing the player to dodge successfully.
+
+---
+
+### 🟢 Phase 13: Jump Height Balancing Complete
+
+The player's jump has been successfully balanced and tuned for a higher, more satisfying jump curve!
+
+#### What was implemented:
+
+- **Impulse & Speed Cap Adjustments:** Increased `player.boost` to `4.8` and the maximum vertical velocity cap `player.max_dy` to `4.8` in `_init()`. This removes the upward velocity bottleneck, letting the full jump impulse move the player significantly higher while maintaining solid falling kinetics.
+
+---
+
+### 🟢 Phase 14: 3x3 Bullet Splash Complete
+
+Upgrade player bullets to deal 3x3 tile area-of-effect damage, enabling massive chain-explosions of obstacles (flying asteroids, plant enemies, and map-painted static asteroids) centered on impact.
+
+#### What was implemented:
+
+- **Impact Tracking & Center Computation**: Refactored player bullet collision in `update_bullets()` so that the moment a bullet touches a flying asteroid, a plant enemy, or a map asteroid, it captures the center tile coordinate `(hit_tx, hit_ty)` and signals a hit.
+- **3x3 AoE Area**: Implemented a 24x24 pixel bounding box `(sx = (hit_tx - 1) * 8, sy = (hit_ty - 1) * 8, sw = 24, sh = 24)` to act as the splash zone.
+- **Flying Obstacle Sweeper**: Any active flying asteroids within the AoE box explode instantly (`death_timer = 16`, play standard explosion SFX).
+- **Aggressive Enemy Sweeper**: Any active plant enemies within the AoE box are defeated, playing standard explosion SFX and dropping green crystals to support progression.
+- **Background Terrain chain-destruction**: Evaluated a 3x3 tile neighborhood around the impact tile. Any matching static background map asteroids are cleared (`mset(tx, ty, 0)`), spawning a dedicated visual explosion object and playing standard explosion SFX for each destroyed tile.
