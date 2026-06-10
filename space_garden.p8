@@ -17,6 +17,7 @@ function _init()
     health = 10, max_health = 10,
     fuel = 5, max_fuel = 10,
     crystals_collected = 0,
+    peak_y = 59,
     hearts = {},
     fuel_icons = {}
   }
@@ -112,6 +113,7 @@ function _init()
       elseif sp == 77 then
         add(enemies, { x = mx * 8, y = my * 8, state = "idle", timer = 0, health = 1, death_timer = 0 })
         mset(mx, my, 0)
+        total_green_gems += 1
       end
     end
   end
@@ -683,6 +685,16 @@ function draw_hud()
     end
   end
 
+  -- draw green gems progress
+  spr(22, 96, 2)
+  rectfill(106, 4, 126, 8, 5) -- dark grey background bar
+  if total_green_gems > 0 then
+    local fill_w = flr(20 * (player.green_gems_collected / total_green_gems))
+    if fill_w > 0 then
+      rectfill(106, 4, 106 + fill_w, 8, 11) -- green fill bar
+    end
+  end
+
   camera_update()
   -- restore camera
 end
@@ -706,7 +718,7 @@ function player_update()
 
   -- falling death trigger
   -- this triggers only if the player is in human form and falls off the bottom of the map
-  if player.state == "human" and player.y > 420 then
+  if player.state == "human" and player.y > 512 then
     player.health = 0
     player.state = "dying" -- initiates the death animation sequence
     player.death_timer = 0
@@ -782,12 +794,7 @@ function update_human()
         elseif generator_on then
           if spr_id == 31 then
             mset(cx, cy, 15)
-            laser_bridge_active = false -- bridge OFF
-            sfx(0)
-            break
-          elseif spr_id == 15 then
-            mset(cx, cy, 31)
-            laser_bridge_active = true -- bridge ON
+            laser_bridge_active = false -- bridge OFF forever
             sfx(0)
             break
           end
@@ -814,17 +821,31 @@ function update_human()
   -- y movement & collision
   player.y += player.dy
   if player.dy > 0 then
+    player.peak_y = min(player.peak_y, player.y)
     if _collide_map(player, "down", 0) then
+      local fall_dist = player.y - player.peak_y
+      if fall_dist > 160 then
+        if not player.hurt_timer or player.hurt_timer <= 0 then
+          change_health(-1)
+          player.hurt_timer = 15
+          sfx(5)
+        end
+      end
+      
       player.landed = true
       player.falling = false
       player.dy = 0
       player.y = flr((player.y + player.h) / 8) * 8 - player.h
+      player.peak_y = player.y
     end
   elseif player.dy < 0 then
+    player.peak_y = player.y
     if _collide_map(player, "up", 0) then
       player.dy = 0
       player.y = flr((player.y - 1) / 8) * 8 + 8
     end
+  else
+    player.peak_y = player.y
   end
 
   -- x movement & collision
@@ -861,6 +882,7 @@ function update_ship()
   if player.fuel <= 0 then
     player.fuel = 0
     player.state = "human"
+    player.peak_y = player.y
     sfx(3) -- transform down sound
     sfx(-1, 3) -- stop engine loop
     return
@@ -889,6 +911,7 @@ function update_ship()
   -- transform back to human
   if btnp(4) then
     player.state = "human"
+    player.peak_y = player.y
     sfx(3) -- transform down sound
     sfx(-1, 3) -- stop engine loop
     return
@@ -1004,7 +1027,16 @@ function check_crystal_collision()
     local map_y = flr(c.y / 8)
     local spr_id = mget(map_x, map_y)
 
-    if fget(spr_id, 4) then
+    if spr_id == 22 then
+      sfx(4)
+      player.green_gems_collected += 1
+      if player.health < player.max_health then
+        change_health(1)
+      end
+      mset(map_x, map_y, 0)
+      add(effects, { x = map_x * 8, y = map_y * 8, timer = 0, type = "crystal" })
+      break
+    elseif fget(spr_id, 4) then
       -- BLUE flag (Collectible)
       if player.fuel < player.max_fuel then
         sfx(4) -- crystal pick-up sound
@@ -1015,17 +1047,6 @@ function check_crystal_collision()
         add(effects, { x = map_x * 8, y = map_y * 8, timer = 0, type = "crystal" })
         break -- only collect one at a time
       end
-    end
-
-    if spr_id == 22 then
-      sfx(4)
-      player.green_gems_collected += 1
-      if player.health < player.max_health then
-        change_health(1)
-      end
-      mset(map_x, map_y, 0)
-      add(effects, { x = map_x * 8, y = map_y * 8, timer = 0, type = "crystal" })
-      break
     end
   end
 

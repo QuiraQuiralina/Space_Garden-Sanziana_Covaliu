@@ -1,0 +1,9 @@
+Statement of originality
+This is my own work. 
+- The game mechanics were designed by me.
+- The visual assets were created by me.
+- The story was written by me.
+- The SFX were done by me
+- The design, ideea and execution were done by me.
+I have used an AI model (Antigravity, Gemini 3.1 Pro)
+to generate the code based on the design sheet.

@@ -316,3 +316,154 @@ Upgrade player bullets to deal 3x3 tile area-of-effect damage, enabling massive 
 - **Flying Obstacle Sweeper**: Any active flying asteroids within the AoE box explode instantly (`death_timer = 16`, play standard explosion SFX).
 - **Aggressive Enemy Sweeper**: Any active plant enemies within the AoE box are defeated, playing standard explosion SFX and dropping green crystals to support progression.
 - **Background Terrain chain-destruction**: Evaluated a 3x3 tile neighborhood around the impact tile. Any matching static background map asteroids are cleared (`mset(tx, ty, 0)`), spawning a dedicated visual explosion object and playing standard explosion SFX for each destroyed tile.
+
+---
+
+# 🐛 [PLAN IV] Win Condition Bug Fix
+
+This plan addresses a logic bug in the winning condition where the game triggers the win state prematurely.
+
+## The Bug
+In Phase 11, we stated that the total green gems required to win should be: `total_green_gems = static_green_gems + total_enemy_plants`. 
+However, in `space_garden.p8`'s `_init()` function, `total_green_gems` only counts the static green gems (`sp == 22`) placed on the map. It does not increment for plant enemies (`sp == 77`), even though plant enemies drop green gems when defeated. 
+Because the total gem count requirement is artificially lower than the total possible gems in the game, collecting a green gem dropped by an enemy will allow the player to reach the `total_green_gems` target without actually clearing the entire map!
+
+## 🛠️ Proposed Changes
+We need to update the `_init()` function to properly increment the `total_green_gems` counter when registering a plant enemy.
+
+```lua
+  -- count green gems
+  total_green_gems = 0
+  for my = 0, 63 do
+    for mx = 0, 127 do
+      local sp = mget(mx, my)
+      if sp == 22 then
+        total_green_gems += 1
+      elseif sp == 77 then
+        add(enemies, { x = mx * 8, y = my * 8, state = "idle", timer = 0, health = 1, death_timer = 0 })
+        mset(mx, my, 0)
+        total_green_gems += 1 -- <--- THIS IS THE FIX
+      end
+    end
+  end
+```
+
+## 👥 User Review Required
+
+> [!IMPORTANT]
+> The bug has been identified! Would you like me to go ahead and implement this fix in `space_garden.p8`?
+> *(Note: This fix has been successfully applied to the codebase!)*
+
+---
+
+# 💎 [PLAN V] Visual UI for Green Gems
+
+This plan outlines how to visually inform the player about their green gem collection progress towards the win condition.
+
+## 🛠️ Proposed Changes
+
+Currently, the HUD draws the player's Hearts and Fuel on the top left. We will add a new HUD element for the Green Gems on the top right. 
+Since the total number of green gems depends dynamically on the level layout and the number of plant enemies, we cannot easily draw a fixed bar of crystal icons without risking the bar becoming too long and overlapping with the health/fuel UI.
+
+### Option A: Minimalist Text Counter (Recommended)
+We draw a single Green Gem icon (sprite `22`) in the top right corner, followed by a numerical fraction counter: `Collected / Total` (e.g., `3/8`).
+- **Position:** Top Right (around x=96, y=2)
+- **Text Color:** 11 (Light Green)
+
+### Option B: Dynamic Progress Bar
+We draw a custom pixel-art rectangle filling up horizontally with green color based on the percentage of gems collected (`player.green_gems_collected / total_green_gems`). This is more graphical but hides the exact number.
+
+## 👥 User Review Required
+
+> [!IMPORTANT]
+> Please review the options above for the Green Gem UI! 
+> Do you prefer Option A (Text Counter), Option B (Percentage Bar), or do you have another layout in mind? Let me know and I will implement it!
+> *(Note: The user selected Option A and it has been successfully implemented in the codebase!)*
+
+---
+
+# 🔧 [PLAN VI] Crystal Logic Fix & HUD Overhaul
+
+## The Crystal Bug Identified
+The reason the counter was stuck at `0/24` and your fuel bar was filling up instead is a **Flag Collision Bug**. 
+The Green Crystal (sprite `22`) shares the `BLUE` flag (Flag 4) which is defined as "Collectible". In `space_garden.p8`, the collision engine checks if the tile has the `BLUE` flag *before* checking if it's sprite `22`. Because the Green Crystal matches the `BLUE` flag condition, the game mistakenly processes it as a Fuel Crystal, increments your fuel, and terminates the check before ever running the Green Crystal logic!
+
+**The Fix:** We will simply reorder the checks in `check_crystal_collision()` so that it explicitly checks for `spr_id == 22` (Green Gem) first, and if false, falls back to the `BLUE` flag check for fuel.
+
+## The HUD Redesign
+Since the text counter felt out of place or broken, we will overhaul the HUD to cleanly display the Green Gem progress.
+
+### Proposed Redesign: The Graphical Progress Bar
+We will replace the `0/24` text with a sleek, custom-drawn pixel progress bar positioned at the top right. 
+- We draw the Green Gem icon (`spr(22, 90, 2)`).
+- Beside it, we draw an empty dark-grey rectangle (`rectfill`).
+- Over top of that, we draw a bright green rectangle that dynamically grows from left to right as `player.green_gems_collected` increases towards `total_green_gems`.
+This gives immediate visual feedback without numbers cluttering the screen or looking like a broken string.
+
+## 👥 User Review Required
+
+> [!IMPORTANT]
+> The crystal collection bug is fully understood and the code reorder will fix it instantly. 
+> Do you approve of replacing the text counter with the Graphical Progress Bar as described in the new HUD redesign?
+> *(Note: The flag collision bug has been fixed and the new Graphical Progress Bar has been successfully implemented in the codebase!)*
+
+---
+
+# 🕳️ [PLAN VII] Falling Death Investigation & Fix
+
+## The Investigation
+You suspected the game was tracking "tiles flown" and applying fall damage when shifting back to human form. 
+I have scanned the code, and **the game does not track fall distance or tiles flown at all**. 
+
+Instead, the culprit is a hardcoded **Absolute Y-Coordinate Kill Zone**.
+In `space_garden.p8` inside the `player_update()` loop, there is this block of code:
+```lua
+  -- falling death trigger
+  if player.state == "human" and player.y > 420 then
+    player.health = 0
+    player.state = "dying"
+    player.death_timer = 0
+    sfx(5)
+  end
+```
+
+**Why it instakills when shifting:**
+The game checks if your absolute vertical position (`player.y`) is greater than `420` (which is about tile row 52 on the map). 
+Because the ship is immune to this check, you can safely fly your ship below `y = 420`. But the *exact frame* you press 'C' to transform back into a human, the game sees that you are a human and your Y-coordinate is `> 420`, so it instantly kills you mid-air!
+
+## 🛠️ Proposed Changes
+
+We need to redefine how falling death works so it doesn't artificially restrict the bottom of the map.
+
+**Option A: Extend the Map Boundary**
+If you want the player to only die when falling off the absolute bottom of the entire map grid, we should change the kill zone from `420` to `512` (the true bottom edge of the PICO-8 map). 
+```lua
+if player.state == "human" and player.y > 512 then
+```
+
+**Option B: True Fall Damage (Selected)**
+Here is the exact logic I propose to implement "True Fall Damage" while also solving the ship-shifting bug:
+
+1. **Tracking the "Peak" Height:**
+   - We introduce a new variable `player.peak_y`. 
+   - Whenever the human player is falling (`player.dy > 0`), we continuously record their highest point (which is the lowest numerical Y value in PICO-8). `player.peak_y = min(player.peak_y, player.y)`.
+   - When the player is safely on the ground, `player.peak_y` simply follows their current `y` position.
+
+2. **Calculating the Impact:**
+   - The exact moment the human player lands on the ground (collides downwards), we calculate the total fall distance: `local fall_dist = player.y - player.peak_y`.
+   - If `fall_dist > 100` pixels (about 12.5 tiles), the player takes Fall Damage.
+   - We can either **Instakill** the player (health = 0) or simply deal **1 Damage** per severe fall. (I recommend dealing 1 or 2 damage so it isn't too punishing, but I can instakill if you prefer!)
+
+3. **The "Parachute" Ship Mechanic:**
+   - If you jump off a cliff, freefall for 200 pixels, and then press 'C' to transform into the Ship right before hitting the ground, the Ship's thrusters save you! 
+   - When you transform *back* from the Ship to Human, `player.peak_y` is immediately reset to your current Y coordinate. This means the ship acts as a perfect parachute, and you are only judged on the distance you fall *as a human*.
+
+4. **The Bottomless Pit Safety Net:**
+   - We will still push the absolute map limit down to the true bottom edge: `if player.y > 512 then die()`. This ensures that if you actually fall completely off the game grid, you still die.
+
+## 👥 User Review Required
+
+> [!IMPORTANT]
+> How does this logic sound to you? 
+> Specifically, when the player falls more than 100 pixels, do you want them to **Instantly Die** or **Lose 1 Heart**? Let me know and I will write the code!
+> *(Note: The user selected Option B and it has been implemented with the "Lose 1 Heart" penalty to remain balanced!)*
